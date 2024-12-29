@@ -126,7 +126,7 @@ do
                 },
             },
         }
-        writefile(Name .. ".font", game.HttpService:JSONEncode(Data))
+        writefile(Name .. ".font", game:GetService("HttpService"):JSONEncode(Data))
         return getcustomasset(Name .. ".font");
     end
     
@@ -139,7 +139,7 @@ do
         local NotificationGui = Instance.new("ScreenGui", Path)
         NotificationGui.Name = "Chronos.rip Library"
         NotificationGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-        NotificationGui.Parent = game.CoreGui
+        NotificationGui.Parent = game:GetService("CoreGui")
         -- 
         function Library:updateNotifsPositions(position)
             for i, v in pairs(Library.Notifs) do 
@@ -817,7 +817,7 @@ end
 do
     local Pages = Library.Pages;
     local Sections = Library.Sections;
-    Path = game.CoreGui
+    Path = game:GetService("CoreGui")
     
     function Library:Window(Options)
         local Window = {
@@ -3871,14 +3871,14 @@ do
             end
         end)
         
-        createoptions(game.Players:GetPlayers())
+        createoptions(game:GetService("Players"):GetPlayers())
         
-        game.Players.PlayerAdded:Connect(function()
-            Playerlist:Refresh(game.Players:GetPlayers(), true)
+        game:GetService("Players").PlayerAdded:Connect(function()
+            Playerlist:Refresh(game:GetService("Players"):GetPlayers(), true)
         end)
         
-        game.Players.PlayerRemoving:Connect(function()
-            Playerlist:Refresh(game.Players:GetPlayers(), true)
+        game:GetService("Players").PlayerRemoving:Connect(function()
+            Playerlist:Refresh(game:GetService("Players"):GetPlayers(), true)
         end)
 
         Playerlist.Page.Elements.Left.Size = UDim2.new(0.5, -5,0.5, -80)
