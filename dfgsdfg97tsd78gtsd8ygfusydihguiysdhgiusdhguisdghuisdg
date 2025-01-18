@@ -891,7 +891,7 @@ do
 
         local Logo = Library:NewInstance("ImageLabel", true)
         Logo.Name = "Logo"
-        Logo.Image = "rbxassetid://133111335426845"
+        Logo.Image = "rbxassetid://119120017333319"
         Logo.ScaleType = Enum.ScaleType.Fit
         Logo.AnchorPoint = Vector2.new(0, 0.5)
         Logo.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
