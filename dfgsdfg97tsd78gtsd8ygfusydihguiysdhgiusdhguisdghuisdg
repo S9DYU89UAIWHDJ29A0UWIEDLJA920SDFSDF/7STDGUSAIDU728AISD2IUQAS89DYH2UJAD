@@ -1,6 +1,6 @@
 Library = {
     Open = true;
-    Accent = Color3.fromRGB(255,255,255); --Color3.fromRGB(0,117,19);
+    Accent = Color3.fromRGB(230,0,255); --Color3.fromRGB(0,117,19);
     RiskColor = Color3.fromRGB(255,0,0);
     Pages = {};
     Sections = {};
