@@ -77,12 +77,12 @@ local Dropdowns = {};
 local Pickers = {}; 
 local VisValues = {}; 
 
-if not isfolder("Invalid.rip") then
-    makefolder("Invalid.rip")
+if not isfolder("Chronos.rip") then
+    makefolder("Chronos.rip")
 end
 
-if not isfolder("Invalid.rip/Config") then
-    makefolder("Invalid.rip/Config")
+if not isfolder("Chronos.rip/Config") then
+    makefolder("Chronos.rip/Config")
 end
 
 Library.__index = Library
@@ -136,7 +136,7 @@ do
 
     do 
         local NotificationGui = Instance.new("ScreenGui", Path)
-        NotificationGui.Name = "Invalid.rip Library"
+        NotificationGui.Name = "Chronos.rip Library"
         NotificationGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
         NotificationGui.Parent = game:GetService("CoreGui")
         -- 
@@ -827,7 +827,7 @@ do
         };
         
         local ChronosRip = Instance.new("ScreenGui", Path)
-        ChronosRip.Name = "Invalid.rip"
+        ChronosRip.Name = "Chronos.rip"
         ChronosRip.DisplayOrder = 5
         ChronosRip.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
