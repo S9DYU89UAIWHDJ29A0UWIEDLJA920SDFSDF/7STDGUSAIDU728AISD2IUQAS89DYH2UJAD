@@ -8,6 +8,7 @@ Library = {
     UnNamedFlags = 0;
     ThemeObjects = {};
     Holder = nil;
+    OldParent = nil;
     Modal = nil;
     Notifs = {};
     Keys = {
@@ -70,12 +71,18 @@ Library = {
     Friends = {};
     Priorities = {};
     KeyList = nil;
+
+    EasingStyle = Enum.EasingStyle.Quint;
+    TweeningSpeed = 0.5;
 }
 
 local Flags = {}; 
 local Dropdowns = {}; 
 local Pickers = {}; 
 local VisValues = {}; 
+
+local vec2, vec3, dim2, dim, rect, dim_offset = Vector2.new, Vector3.new, UDim2.new, UDim.new, Rect.new, UDim2.fromOffset
+local color, rgb, hex, hsv, rgbseq, rgbkey, numseq, numkey, cfr, angle = Color3.new, Color3.fromRGB, Color3.fromHex, Color3.fromHSV, ColorSequence.new, ColorSequenceKeypoint.new, NumberSequence.new, NumberSequenceKeypoint.new, CFrame.new, CFrame.Angles
 
 if not isfolder("Chronos.rip") then
     makefolder("Chronos.rip")
@@ -93,6 +100,51 @@ local Mouse = LocalPlayer:GetMouse();
 local TweenService = game:GetService("TweenService");
 
 do
+    function Library:GetTransparency(obj)
+        if obj:IsA("Frame") then
+            return {"BackgroundTransparency"}
+        elseif obj:IsA("TextLabel") or obj:IsA("TextButton") then
+            return { "TextTransparency", "BackgroundTransparency" }
+        elseif obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
+            return { "BackgroundTransparency", "ImageTransparency" }
+        elseif obj:IsA("ScrollingFrame") then
+            return { "BackgroundTransparency", "ScrollBarImageTransparency" }
+        elseif obj:IsA("TextBox") then
+            return { "TextTransparency", "BackgroundTransparency" }
+        elseif obj:IsA("UIStroke") then 
+            return { "Transparency" }
+        end
+        
+        return nil
+    end
+
+    function Library:Tween(Object, Properties, Info)
+        local tween = TweenService:Create(Object, Info or TweenInfo.new(Library.TweeningSpeed, Library.EasingStyle, Enum.EasingDirection.InOut, 0, false, 0), Properties)
+        tween:Play()
+        
+        return tween
+    end
+    
+    function Library:Fade(obj, prop, vis, speed)
+        if not (obj and prop) then
+            return
+        end
+
+        local OldTransparency = obj[prop]
+        obj[prop] = vis and 1 or OldTransparency
+
+        local Tween = Library:Tween(obj, { [prop] = vis and OldTransparency or 1 }, TweenInfo.new(speed or Library.TweeningSpeed, Library.EasingStyle, Enum.EasingDirection.InOut, 0, false, 0))
+
+        Library:Connection(Tween.Completed, function()
+            if not vis then
+                task.wait()
+                obj[prop] = OldTransparency
+            end
+        end)
+
+        return Tween
+    end
+
     function Library:Connection(Signal, Callback)
         local Con = Signal:Connect(Callback)
         return Con
@@ -105,7 +157,7 @@ do
     function Library:Round(Number, Float)
         return Float * math.floor(Number / Float)
     end
-    
+
     function Library.NextFlag()
         Library.UnNamedFlags = Library.UnNamedFlags + 1
         return string.format("%.14g", Library.UnNamedFlags)
@@ -125,7 +177,7 @@ do
                 },
             },
         }
-        writefile(Name .. ".font", game:GetService("HttpService"):JSONEncode(Data))
+        writefile(Name .. ".font", game.HttpService:JSONEncode(Data))
         return getcustomasset(Name .. ".font");
     end
     
@@ -138,7 +190,7 @@ do
         local NotificationGui = Instance.new("ScreenGui", Path)
         NotificationGui.Name = "Chronos.rip Library"
         NotificationGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-        NotificationGui.Parent = game:GetService("CoreGui")
+        NotificationGui.Parent = game.CoreGui
         -- 
         function Library:updateNotifsPositions(position)
             for i, v in pairs(Library.Notifs) do 
@@ -450,7 +502,7 @@ end;
 do
     function Library:NewPicker(name, default, defaultalpha, parent, count, flag, callback)
         local Icon = Instance.new("TextButton", parent)
-        local ColorWindow = Instance.new('Frame', Icon)
+        local ColorWindow = Instance.new('TextButton', Icon)
         local WindowInline = Instance.new('Frame', ColorWindow)
         local Color = Instance.new('TextButton', WindowInline)
         local Sat = Instance.new('ImageLabel', Color)
@@ -466,7 +518,7 @@ do
         Icon.BackgroundColor3 = default
         Icon.BorderColor3 = Color3.fromRGB(30, 30, 30)
         Icon.BorderSizePixel = 0
-        Icon.ZIndex = 99
+        Icon.ZIndex = 1
         if count == 1 then
             Icon.Position = UDim2.new(1, - (count * 34),0.5,0)
         else
@@ -484,7 +536,7 @@ do
         })
         UIGradient.Rotation = 90
         UIGradient.Parent = Icon
-
+        
         local UIStroke = Instance.new("UIStroke")
         UIStroke.Name = "UIStroke"
         UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
@@ -493,8 +545,10 @@ do
         UIStroke.Parent = Icon
         
         ColorWindow.Name = "ColorWindow"
-        ColorWindow.Parent = Icon
+        ColorWindow.Parent = Library.MiscGUI
+        ColorWindow.AutoButtonColor = false 
         ColorWindow.Position = UDim2.new(1,-2,1,2)
+        ColorWindow.Text = ""
         ColorWindow.Size = UDim2.new(0,150,0,146)
         ColorWindow.AnchorPoint = Vector2.new(1,0)
         ColorWindow.ZIndex = 200
@@ -509,7 +563,7 @@ do
         WindowInline.BackgroundColor3 = Color3.fromRGB(24, 25, 27)
         WindowInline.BorderSizePixel = 0;
         WindowInline.ZIndex = 100
-        
+
         Color.Name = "Color"
         Color.Position = UDim2.new(0,1,0,1)
         Color.Size = UDim2.new(0,120,0,120)
@@ -741,14 +795,13 @@ do
             if ColorWindow.Visible and Input.UserInputType == Enum.UserInputType.MouseButton1 then
                 if not Library:IsMouseOverFrame(ColorWindow) and not Library:IsMouseOverFrame(Icon) then
                     ColorWindow.Visible = false
-                    --parent.ZIndex = 1
                 end
             end
         end)
 
         Icon.MouseButton1Down:Connect(function()
             ColorWindow.Visible = true
-            --parent.ZIndex = 5
+            ColorWindow.Position = UDim2.new(0, Icon.AbsolutePosition.X + 34, 0, Icon.AbsolutePosition.Y + 17)
 
             if slidinghue then
                 slidinghue = false
@@ -765,6 +818,21 @@ do
 
         return colorpickertypes, ColorWindow, Icon
     end
+end
+
+function Library:Create(instance, options)
+    local ins = Instance.new(instance) 
+
+    for prop, value in options do
+        ins[prop] = value
+    end
+
+    if ins == "TextButton" then 
+        ins["AutoButtonColor"] = false 
+        ins["Text"] = ""
+    end 
+    
+    return ins 
 end
 
 function Library:NewInstance(Inst, Theme)
@@ -816,7 +884,7 @@ end
 do
     local Pages = Library.Pages;
     local Sections = Library.Sections;
-    Path = game:GetService("CoreGui")
+    Path = game.CoreGui
     
     function Library:Window(Options)
         local Window = {
@@ -824,14 +892,55 @@ do
             Sections = {};
             Elements = {};
             Dragging = { false, UDim2.new(0, 0, 0, 0) };
+            Tweening = false;
+            Items = {};
         };
-        
+
         local ChronosRip = Instance.new("ScreenGui", Path)
         ChronosRip.Name = "Chronos.rip"
         ChronosRip.DisplayOrder = 5
         ChronosRip.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
         Library.ScreenGUI = ChronosRip
+
+        local MiscGUI = Instance.new("ScreenGui", Path)
+        MiscGUI.Name = "\0"
+        MiscGUI.DisplayOrder = 100
+        MiscGUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+        Library.MiscGUI = MiscGUI
+
+        local Items = Window.Items; do 
+            Items.Shadow = Library:Create( "ImageLabel" , {
+                BorderColor3 = rgb(0, 0, 0);
+                Parent = ChronosRip;
+                Name = "\0";
+                Image = "rbxassetid://297774371";
+                BackgroundTransparency = 1;
+                Position = dim2(0.3157893717288971, 0, 0.3242894113063812, 0);
+                Size = dim2(0, 343, 0, 345);
+                BorderSizePixel = 0;
+                BackgroundColor3 = rgb(255, 255, 255)
+            });
+
+            Items.Outline = Library:Create( "Frame" , {
+                Parent = Items.Shadow;
+                Name = "\0";
+                Position = dim2(0, 10, 0, 10);
+                BorderColor3 = rgb(0, 0, 0);
+                Size = dim2(1, -20, 1, -20);
+                BorderSizePixel = 0;
+                BackgroundColor3 = rgb(15, 15, 15)
+            });
+
+            Items.Holder = Library:Create( "Frame" , {
+                Parent = Items.Outline;
+                Name = "\0";
+                Position = dim2(0, 0, 0, 20);
+                BorderColor3 = rgb(0, 0, 0);
+                Size = dim2(1, 0, 0, 0);
+                BorderSizePixel = 0;
+                BackgroundColor3 = rgb(255, 255, 255)
+            });
+        end 
 
         LibraryMouseGui = Instance.new("ScreenGui");
         LibraryMouseGui.Parent = gethui();
@@ -865,6 +974,7 @@ do
         ImageLabel.ImageColor3 = Color3.fromRGB(0, 0, 0)
         ImageLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         ImageLabel.BackgroundTransparency = 1
+        ImageLabel.Visible = false
         ImageLabel.BorderColor3 = Color3.fromRGB(0, 0, 0)
         ImageLabel.BorderSizePixel = 0
         ImageLabel.Position = UDim2.new(0.1, 0, 0.1, 0)
@@ -891,7 +1001,7 @@ do
 
         local Logo = Library:NewInstance("ImageLabel", true)
         Logo.Name = "Logo"
-        Logo.Image = "rbxassetid://119120017333319"
+        Logo.Image = "rbxassetid://133111335426845"
         Logo.ScaleType = Enum.ScaleType.Fit
         Logo.AnchorPoint = Vector2.new(0, 0.5)
         Logo.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
@@ -955,6 +1065,16 @@ do
         Holder.Size = UDim2.new(1, 6, 1, 6)
         Holder.ZIndex = 0
 
+        local Fading = Instance.new("Frame")
+        Fading.Name = "\0"
+        Fading.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+        Fading.BorderColor3 = Color3.fromRGB(0, 0, 0)
+        Fading.BorderSizePixel = 0
+        Fading.Position = UDim2.new(0, 91, 0, 35)
+        Fading.Size = UDim2.new(1, -100, 1, -40)
+        Fading.ZIndex = 999
+        Fading.BackgroundTransparency = 1
+
         local Shadow = Instance.new("ImageLabel")
         Shadow.Name = "umbraShadow"
         Shadow.Image = "rbxassetid://1316045217"
@@ -1016,12 +1136,13 @@ do
         Library:Resize(ResizeButton, ImageLabel)
 
         Holder.Parent = ImageLabel
-
+        Fading.Parent = ImageLabel
         ImageLabel.Parent = ChronosRip
 
         Window.Elements = {
             TabHolder = Tabs,
             Holder = MainFrame,
+            Fading = Fading,
         }
 
         Library:Connection(MainFrame.MouseButton1Down, function()
@@ -1174,7 +1295,7 @@ do
                 local KeyValue = {}
                 
                 local KName = Library:NewInstance("TextLabel", true)
-                 
+                
                 KName.Name = "Name"
                 KName.Parent = Tab
                 KName.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -1209,10 +1330,487 @@ do
             end
         end
 
+        function Window:ToggleMenu(bool)   
+            if Window.Tweening then 
+                print("returned")
+                return 
+            end 
+
+            Window.Tweening = true 
+
+            if bool then 
+                ImageLabel.Visible = true
+                game.CoreGui["Chronos.rip"]["\0"].Visible = true
+            else
+                game.CoreGui["Chronos.rip"]["\0"]["\0"]["\0"].ViewportFrame.Visible = false
+            end
+
+            local Children = ImageLabel:GetDescendants()
+            local Children2 = game.CoreGui["Chronos.rip"]["\0"]:GetDescendants()
+            for i,v in Children2 do
+                table.insert(Children, v)
+            end
+            table.insert(Children, game.CoreGui["Chronos.rip"]["\0"])
+            table.insert(Children, ImageLabel)
+
+            local Tween;
+            for _,obj in Children do
+                local Index = Library:GetTransparency(obj)
+
+                if not Index then 
+                    continue 
+                end
+
+                if type(Index) == "table" then
+                    for _,prop in Index do
+                        Tween = Library:Fade(obj, prop, bool)
+                    end
+                else
+                    Tween = Library:Fade(obj, Index, bool)
+                end
+            end
+
+            Library:Connection(Tween.Completed, function()
+                Window.Tweening = false
+                ImageLabel.Visible = bool
+                game.CoreGui["Chronos.rip"]["\0"].Visible = bool
+                game.CoreGui["Chronos.rip"]["\0"]["\0"]["\0"].ViewportFrame.Visible = bool
+            end)
+        end 
+
         Library.Holder = ImageLabel
         return setmetatable(Window, Library)
     end;
-    
+
+    function Library:esp_preview(properties)
+        local cfg = {items = {}, rotation = 0; objects = {};}
+
+        game.Players.LocalPlayer.Character.Archivable = true
+        local character = game.Players.LocalPlayer.Character:Clone()
+        character.Animate:Destroy()
+
+        local items = cfg.items; do 
+            items.viewportframe = Library:Create( "ViewportFrame" , {
+                Parent = self.Items.Holder;
+                BackgroundTransparency = 1;
+                Size = dim2(1, 0, 0, 250);
+                BorderColor3 = rgb(0, 0, 0);
+                ZIndex = 1;
+                BorderSizePixel = 0;
+                BackgroundColor3 = rgb(255, 255, 255)
+            });
+            
+            items.camera = Library:Create( "Camera" , {
+                FieldOfView = 70.00022888183594;
+                CameraType = Enum.CameraType.Track;
+                Focus = cfr(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1); -- bro wtf is this serializer doing
+                CFrame = cfr(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1);
+                Parent = ws;
+                Name = "\0"
+            }); 
+
+            items.viewportframe.CurrentCamera = items.camera -- sick
+            character.Parent = items.viewportframe
+
+            items.camera.CameraSubject = character
+
+            items.TopFrame = Instance.new("Frame")
+            items.TopFrame.Name = "TopFrame"
+            items.TopFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+            items.TopFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
+            items.TopFrame.BorderSizePixel = 0
+            items.TopFrame.Size = UDim2.new(1, -20, 0, 25)
+            items.TopFrame.Position = UDim2.new(0, 10, 0, 10)
+            items.TopFrame.Parent = game.CoreGui["Chronos.rip"]["\0"]
+
+            Library:Connection(game:GetService("RunService").RenderStepped, function()
+                task.wait()
+                local test1 = game.CoreGui["Chronos.rip"].ImageLabel
+                game.CoreGui["Chronos.rip"]["\0"].Position = UDim2.new(0, test1.Position.X.Offset + test1.Size.X.Offset + 3, 0, test1.Position.Y.Offset - 8)
+                cfg.rotation += 0.5
+                character:SetPrimaryPartCFrame(cfr(Vector3.new(0, 0, -6)) * angle(0, math.rad(cfg.rotation), 0))
+            end)
+        end 
+
+        local objects = cfg.objects; do 
+            objects[ "holder" ] = Library:Create( "Frame" , {
+                Parent = items.viewportframe;
+                Name = "\0";
+                BackgroundTransparency = 1;
+                Position = dim2(0.5, 0, 0.5, 10);
+                BorderColor3 = rgb(0, 0, 0);
+                Size = dim2(0, 135, 0, 190);
+                BorderSizePixel = 0;
+                AnchorPoint = vec2(0.5, 0.5);
+                BackgroundColor3 = rgb(255, 255, 255)
+            });
+            
+            objects[ "box_outline" ] = Library:Create( "UIStroke" , {
+                Parent = workspace;
+                LineJoinMode = Enum.LineJoinMode.Miter
+            });
+                
+            Library.Flags["Name_Color"].Color = rgb(255, 255, 255)
+            objects[ "name" ] = Library:Create( "TextLabel" , {
+                FontFace = menu_font;
+                Parent = workspace;
+                TextColor3 = Library.Flags["Name_Color"].Color;
+                BorderColor3 = rgb(0, 0, 0);
+                Text = string.format("%s (@%s)", game.Players.LocalPlayer.DisplayName, game.Players.LocalPlayer.Name);
+                Name = "\0";
+                TextStrokeTransparency = 0;
+                AnchorPoint = vec2(0, 1);
+                Size = dim2(1, 0, 0, 0);
+                BackgroundTransparency = 1;
+                Position = dim2(0, 0, 0, -5);
+                BorderSizePixel = 0;
+                AutomaticSize = Enum.AutomaticSize.Y;
+                TextSize = 9;
+            });
+            
+            objects[ "box_handler" ] = Library:Create( "Frame" , {
+                Parent = workspace;
+                Name = "\0";
+                BackgroundTransparency = 1;
+                Position = dim2(0, 1, 0, 1);
+                BorderColor3 = rgb(0, 0, 0);
+                Size = dim2(1, -2, 1, -2);
+                BorderSizePixel = 0;
+                BackgroundColor3 = rgb(255, 255, 255)
+            });
+            
+            objects[ "box_color" ] = Library:Create( "UIStroke" , {
+                Color = rgb(255, 255, 255);
+                LineJoinMode = Enum.LineJoinMode.Miter;
+                Name = "\0";
+                Parent = objects[ "box_handler" ]
+            });
+            
+            objects[ "outline" ] = Library:Create( "Frame" , {
+                Parent = objects[ "box_handler" ];
+                Name = "\0";
+                BackgroundTransparency = 1;
+                Position = dim2(0, 1, 0, 1);
+                BorderColor3 = rgb(0, 0, 0);
+                Size = dim2(1, -2, 1, -2);
+                BorderSizePixel = 0;
+                BackgroundColor3 = rgb(255, 255, 255)
+            });
+            
+            Library:Create( "UIStroke" , {
+                Parent = objects[ "outline" ];
+                LineJoinMode = Enum.LineJoinMode.Miter
+            });  
+            
+            -- Corner Boxes
+                objects[ "corners" ] = Library:Create( "Frame" , {
+                    Visible = true;
+                    BorderColor3 = rgb(0, 0, 0);
+                    Parent = workspace;
+                    BackgroundTransparency = 1;
+                    Position = dim2(0, -1, 0, 2);
+                    Name = "\0";
+                    Size = dim2(1, 0, 1, 0);
+                    BorderSizePixel = 0;
+                    BackgroundColor3 = rgb(255, 255, 255)
+                });
+
+                objects[ "1" ] = Library:Create( "Frame" , {
+                    Parent = objects[ "corners" ];
+                    Name = "line";
+                    Position = dim2(0, 0, 0, -2);
+                    BorderColor3 = rgb(0, 0, 0);
+                    Size = dim2(0.4, 0, 0, 3);
+                    BorderSizePixel = 0;
+                    BackgroundColor3 = rgb(0, 0, 0)
+                });
+
+                Library.Flags["Box_Color"].Color = rgb(255, 255, 255)
+                Library:Create( "Frame" , {
+                    Parent = objects[ "1" ];
+                    Position = dim2(0, 1, 0, 1);
+                    BorderColor3 = rgb(0, 0, 0);
+                    Size = dim2(1, -2, 1, -2);
+                    BorderSizePixel = 0;
+                    BackgroundColor3 = Library.Flags["Box_Color"].Color
+                });
+                
+                objects[ "2" ] = Library:Create( "Frame" , {
+                    Parent = objects[ "corners" ];
+                    Name = "line";
+                    Position = dim2(0, 0, 0, 1);
+                    BorderColor3 = rgb(0, 0, 0);
+                    Size = dim2(0, 3, 0.25, 0);
+                    BorderSizePixel = 0;
+                    BackgroundColor3 = rgb(0, 0, 0)
+                });
+                
+                Library.Flags["Box_Color"].Color = rgb(255, 255, 255)
+                Library:Create( "Frame" , {
+                    Parent = objects[ "2" ];
+                    Position = dim2(0, 1, 0, -2);
+                    BorderColor3 = rgb(0, 0, 0);
+                    Size = dim2(1, -2, 1, 1);
+                    BorderSizePixel = 0;
+                    BackgroundColor3 = Library.Flags["Box_Color"].Color
+                });
+                
+                objects[ "3" ] = Library:Create( "Frame" , {
+                    AnchorPoint = vec2(1, 0);
+                    Parent = objects[ "corners" ];
+                    Name = "line";
+                    Position = dim2(1, 0, 0, -2);
+                    BorderColor3 = rgb(0, 0, 0);
+                    Size = dim2(0.4, 0, 0, 3);
+                    BorderSizePixel = 0;
+                    BackgroundColor3 = rgb(0, 0, 0)
+                });
+
+                Library.Flags["Box_Color"].Color = rgb(255, 255, 255)
+                Library:Create( "Frame" , {
+                    Parent = objects[ "3" ];
+                    Position = dim2(0, 1, 0, 1);
+                    BorderColor3 = rgb(0, 0, 0);
+                    Size = dim2(1, -2, 1, -2);
+                    BorderSizePixel = 0;
+                    BackgroundColor3 = Library.Flags["Box_Color"].Color
+                });
+                
+                objects[ "4" ] = Library:Create( "Frame" , {
+                    AnchorPoint = vec2(1, 0);
+                    Parent = objects[ "corners" ];
+                    Name = "line";
+                    Position = dim2(1, 0, 0, 1);
+                    BorderColor3 = rgb(0, 0, 0);
+                    Size = dim2(0, 3, 0.25, 0);
+                    BorderSizePixel = 0;
+                    BackgroundColor3 = rgb(0, 0, 0)
+                });
+                
+                Library:Create( "Frame" , {
+                    Parent = objects[ "4" ];
+                    Position = dim2(0, 1, 0, -2);
+                    BorderColor3 = rgb(0, 0, 0);
+                    Size = dim2(1, -2, 1, 1);
+                    BorderSizePixel = 0;
+                    BackgroundColor3 = Library.Flags["Box_Color"].Color
+                });
+                
+                objects[ "5" ] = Library:Create( "Frame" , {
+                    AnchorPoint = vec2(0, 1);
+                    Parent = objects[ "corners" ];
+                    Name = "line";
+                    Position = dim2(0, 0, 1, -2);
+                    BorderColor3 = rgb(0, 0, 0);
+                    Size = dim2(0.4, 0, 0, 3);
+                    BorderSizePixel = 0;
+                    BackgroundColor3 = rgb(0, 0, 0)
+                });
+                
+                Library:Create( "Frame" , {
+                    Parent = objects[ "5" ];
+                    Position = dim2(0, 1, 0, 1);
+                    BorderColor3 = rgb(0, 0, 0);
+                    Size = dim2(1, -2, 1, -2);
+                    BorderSizePixel = 0;
+                    BackgroundColor3 = Library.Flags["Box_Color"].Color
+                });
+                
+                objects[ "6" ] = Library:Create( "Frame" , {
+                    BorderColor3 = rgb(0, 0, 0);
+                    Rotation = 180;
+                    Parent = objects[ "corners" ];
+                    Name = "line";
+                    Position = dim2(0, 0, 1, -5);
+                    AnchorPoint = vec2(0, 1);
+                    Size = dim2(0, 3, 0.25, 0);
+                    BorderSizePixel = 0;
+                    BackgroundColor3 = rgb(0, 0, 0)
+                });
+                
+                Library:Create( "Frame" , {
+                    Parent = objects[ "6" ];
+                    Position = dim2(0, 1, 0, -2);
+                    BorderColor3 = rgb(0, 0, 0);
+                    Size = dim2(1, -2, 1, 1);
+                    BorderSizePixel = 0;
+                    BackgroundColor3 = Library.Flags["Box_Color"].Color
+                });
+                
+                objects[ "7" ] = Library:Create( "Frame" , {
+                    AnchorPoint = vec2(1, 1);
+                    Parent = objects[ "corners" ];
+                    Name = "line";
+                    Position = dim2(1, 0, 1, -2);
+                    BorderColor3 = rgb(0, 0, 0);
+                    Size = dim2(0.4, 0, 0, 3);
+                    BorderSizePixel = 0;
+                    BackgroundColor3 = rgb(0, 0, 0)
+                });
+                
+                Library:Create( "Frame" , {
+                    Parent = objects[ "7" ];
+                    Position = dim2(0, 1, 0, 1);
+                    BorderColor3 = rgb(0, 0, 0);
+                    Size = dim2(1, -2, 1, -2);
+                    BorderSizePixel = 0;
+                    BackgroundColor3 = Library.Flags["Box_Color"].Color
+                });
+                
+                objects[ "7" ] = Library:Create( "Frame" , {
+                    BorderColor3 = rgb(0, 0, 0);
+                    Rotation = 180;
+                    Parent = objects[ "corners" ];
+                    Name = "line";
+                    Position = dim2(1, 0, 1, -5);
+                    AnchorPoint = vec2(1, 1);
+                    Size = dim2(0, 3, 0.25, 0);
+                    BorderSizePixel = 0;
+                    BackgroundColor3 = rgb(0, 0, 0)
+                });
+                
+                Library:Create( "Frame" , {
+                    Parent = objects[ "7" ];
+                    Position = dim2(0, 1, 0, -2);
+                    BorderColor3 = rgb(0, 0, 0);
+                    Size = dim2(1, -2, 1, 1);
+                    BorderSizePixel = 0;
+                    BackgroundColor3 = Library.Flags["Box_Color"].Color
+                });
+            -- 
+            
+            -- Healthbar
+                objects[ "healthbar_holder" ] = Library:Create( "Frame" , {
+                    AnchorPoint = vec2(1, 0);
+                    Parent = workspace;
+                    Name = "\0";
+                    Position = dim2(0, -5, 0, 0);
+                    BorderColor3 = rgb(0, 0, 0);
+                    Size = dim2(0, 4, 1, 0);
+                    BorderSizePixel = 0;
+                    BackgroundColor3 = rgb(0, 0, 0)
+                });
+                
+                objects[ "healthbar" ] = Library:Create( "Frame" , {
+                    Parent = objects[ "healthbar_holder" ];
+                    Name = "\0";
+                    Position = dim2(0, 1, 0, 1);
+                    BorderColor3 = rgb(0, 0, 0);
+                    Size = dim2(1, -2, 1, -2);
+                    BorderSizePixel = 0;
+                    BackgroundColor3 = rgb(255, 255, 255)
+                });
+            -- 
+
+            -- Distance esp
+                objects[ "distance" ] = Library:Create( "TextLabel" , {
+                    FontFace = menu_font;
+                    TextColor3 = Library.Flags["Distance_Color"].Color;
+                    BorderColor3 = rgb(0, 0, 0);
+                    Text = "127st";
+                    Parent = workspace;
+                    TextStrokeTransparency = 0;
+                    Name = "\0";
+                    Size = dim2(1, 0, 0, 0);
+                    BackgroundTransparency = 1;
+                    Position = dim2(0, 0, 1, 5);
+                    BorderSizePixel = 0;
+                    AutomaticSize = Enum.AutomaticSize.Y;
+                    TextSize = 9;
+                });                
+            -- 
+
+            -- Weapon esp
+                objects[ "weapon" ] = Library:Create( "TextLabel" , {
+                    FontFace = menu_font;
+                    TextColor3 = Library.Flags["Weapon_Color"].Color;
+                    BorderColor3 = rgb(0, 0, 0);
+                    Text = "[ Weapon ]";
+                    Parent = workspace;
+                    TextStrokeTransparency = 0;
+                    Name = "\0";
+                    Size = dim2(1, 0, 0, 0);
+                    BackgroundTransparency = 1;
+                    Position = dim2(0, 0, 1, 19);
+                    BorderSizePixel = 0;
+                    AutomaticSize = Enum.AutomaticSize.Y;
+                    TextSize = 9;
+                });
+            --  
+        end 
+
+        cfg.change_health = function()
+            if Library.Flags[ "healthbar_holder" ] and Library.Flags[ "healthbar_holder" ].Parent ~= objects[ "holder" ] then 
+                return 
+            end
+
+            local humanoid = character.Humanoid
+            
+            local multiplier = humanoid.MaxHealth * math.abs(math.sin(tick() * 2)) / humanoid.MaxHealth
+            local color = Library.Flags[ "Health_Low" ].Color:Lerp( Library.Flags["Health_High"].Color, multiplier)
+            
+            objects[ "healthbar" ].Size = UDim2.new(1, -2, multiplier, -2)
+            objects[ "healthbar" ].Position = UDim2.new(0, 1, 1 - multiplier, 1)
+            objects[ "healthbar" ].BackgroundColor3 = color
+        end
+
+        function cfg.refresh_elements( )                                
+            objects.holder.Parent = Library.Flags["Enabled"] and items.viewportframe or workspace
+
+            local temp = {
+                ["Names"] = objects["name"]; 
+                ["Name_Color"] = {objects["name"]};
+                ["Healthbar"] = objects[ "healthbar_holder" ];
+                ["Distance"] = objects[ "distance" ];
+                ["Weapon"] = objects[ "weapon" ];
+                ["Distance_Color"] = {objects[ "distance" ]};
+                ["Weapon_Color"] = {objects[ "weapon" ]};
+            }
+
+            for flag,object in temp do 
+                if type(object) == "table" then 
+                    object[1].TextColor3 = Library.Flags[flag].Color
+                else 
+                    object.Parent = Library.Flags[flag] and objects[ "holder" ] or workspace
+                end
+            end 
+            
+            local is_corner = Library.Flags[ "Box_Type" ] == "Corner"
+
+            if Library.Flags["Boxes"] then 
+                if is_corner then 
+                    objects[ "corners" ].Parent = objects["holder"]
+                    objects[ "box_handler" ].Parent = workspace
+                    objects[ "box_outline" ].Parent = workspace
+                else 
+                    objects[ "box_handler" ].Parent = objects[ "holder" ]
+                    objects[ "box_outline" ].Parent = objects[ "holder" ]
+                    objects[ "corners" ].Parent = workspace
+                end 
+            else
+                objects[ "corners" ].Parent =  workspace
+                objects[ "box_handler" ].Parent = workspace
+                objects[ "box_outline" ].Parent = workspace
+            end 
+
+            objects[ "box_color" ].Color = Library.Flags["Box_Color"].Color 
+
+            for _, corner in objects[ "corners" ]:GetChildren() do
+                corner.Frame.BackgroundColor3 = Library.Flags["Box_Color"].Color
+            end
+        end
+
+        task.spawn(function()
+            while true do 
+                task.wait()
+                cfg.change_health()
+            end 
+        end)
+        
+
+        return setmetatable(cfg, library)
+    end
+
     function Library:Page(Properties)
         if not Properties then
             Properties = {}
@@ -1336,6 +1934,10 @@ do
         function Page:Turn(bool)
             Page.Open = bool
             NewPage.Visible = Page.Open
+            Page.Window.Elements.Fading.BackgroundTransparency = 0
+
+            Library:Tween(Page.Window.Elements.Fading, {BackgroundTransparency = 1})
+
             TweenService:Create(AccentLine, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = Page.Open and 0 or 1}):Play()
             TweenService:Create(NewTab, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = Page.Open and 0.95 or 1}):Play()
         end
@@ -2114,7 +2716,6 @@ do
             function Colorpicker:SetVisible(Bool) 
                 Icon.Visible = Bool
             end 
-
             
             return Colorpicker
         end
@@ -2125,7 +2726,7 @@ do
                 SetState()
             end
         end
-         
+        
 
         function Toggle:SetVisible(bool) 
             NewToggle.Visible = bool
@@ -2189,7 +2790,7 @@ do
             ),
             Disabled = (Properties.Disabled or Properties.disable or nil),
         }
-         
+        
         local TextValue = ("[value]" .. Slider.Sub)
         
         local NewSlider = Instance.new("TextButton")
@@ -2288,14 +2889,17 @@ do
         Value.Size = UDim2.new(1, 0, 0, 12)
         Value.Parent = NewSlider
 
-        
         local Sliding = false
         local Val = Slider.State
         local function Set(value)
             value = math.clamp(Library:Round(value, Slider.Decimals), Slider.Min, Slider.Max)
 
             local sizeX = ((value - Slider.Min) / (Slider.Max - Slider.Min))
-            Accent.Size = UDim2.new(sizeX, 0, 1, 0)
+
+            Library:Tween(Accent, {
+                Size = UDim2.new(sizeX, 0, 1, 0)
+            }, TweenInfo.new(0.05, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, 0, false, 0))
+
             if Slider.Disabled and value == Slider.Min then
                 Value.Text = Slider.Disabled
             else
@@ -2398,6 +3002,7 @@ do
                     or Library.NextFlag()
             ),
             OptionInsts = {},
+            Tweening = false
         }
         
         local NewList = Instance.new("TextButton")
@@ -2521,20 +3126,64 @@ do
         Title.Size = UDim2.new(1, 0, 0, 12)
         Title.Parent = NewList
 
-        
-        Library:Connection(Frame.MouseButton1Down, function()
-            Content.Visible = not Content.Visible
-            if Content.Visible then
+        function Dropdown.Fade(bool)   
+            if Dropdown.Tweening then 
+                return 
+            end 
+
+            Dropdown.Tweening = true 
+
+            if bool then 
+                Content.Visible = true
                 NewList.ZIndex = 5
-            else
-                NewList.ZIndex = 1
+                Open = bool
             end
+            
+            local Children = Content:GetDescendants()
+            table.insert(Children, Content)
+
+            local Tween;
+            for _,obj in Children do
+                local Index = Library:GetTransparency(obj)
+
+                if not Index then 
+                    continue 
+                end
+
+                if type(Index) == "table" then
+                    for _,prop in Index do
+                        Tween = Library:Fade(obj, prop, bool)
+                    end
+                else
+                    Tween = Library:Fade(obj, Index, bool)
+                end
+            end
+
+            Library:Connection(Tween.Completed, function()
+                Dropdown.Tweening = false
+                Content.Visible = bool
+                Open = bool
+                NewList.ZIndex = bool and 5 or 1
+            end)
+        end 
+
+        local Open = false
+        Library:Connection(Frame.MouseButton1Down, function()
+            if Dropdown.Tweening then 
+                return 
+            end 
+
+            Open = not Open
+
+            Dropdown.Fade(Open)
         end)
+
         Library:Connection(game:GetService("UserInputService").InputBegan, function(Input)
             if Content.Visible and Input.UserInputType == Enum.UserInputType.MouseButton1 then
                 if not Library:IsMouseOverFrame(Content) and not Library:IsMouseOverFrame(Frame) then
-                    Content.Visible = false
-                    NewList.ZIndex = 1
+                    task.wait()
+                    Open = false
+                    Dropdown.Fade(false)
                 end
             end
         end)
@@ -2554,17 +3203,19 @@ do
                         for _, opt in next, chosen do
                             table.insert(textchosen, opt)
                         end
-
+                        
                         Value.Text = #chosen == 0 and "" or table.concat(textchosen, ",") .. (cutobject and ", ..." or "")
-                        text.Position = UDim2.new(0, 6, 0.5, 0)
-                        accent.Visible = false
+
+                        Library:Tween(accent, {BackgroundTransparency = 1})
+                        Library:Tween(text, {Position = UDim2.new(0, 6, 0.5, 0)})
 
                         Library.Flags[Dropdown.Flag] = chosen
                         Dropdown.Callback(chosen)
                     else
                         if #chosen == Dropdown.Max then
-                            Dropdown.OptionInsts[chosen[1]].accent.Visible = false
-                            Dropdown.OptionInsts[chosen[1]].text.Position = UDim2.new(0, 6, 0.5, 0)
+                            Library:Tween(Dropdown.OptionInsts[chosen[1]].accent, {BackgroundTransparency = 1})
+                            Library:Tween(Dropdown.OptionInsts[chosen[1]].text, {Position = UDim2.new(0, 6, 0.5, 0)})
+
                             table.remove(chosen, 1)
                         end
 
@@ -2578,8 +3229,9 @@ do
                         end
 
                         Value.Text = #chosen == 0 and "" or table.concat(textchosen, ",") .. (cutobject and ", ..." or "")
-                        text.Position = UDim2.new(0, 8, 0.5, 0)
-                        accent.Visible = true
+                        
+                        Library:Tween(accent, {BackgroundTransparency = 0})
+                        Library:Tween(text, {Position = UDim2.new(0, 8, 0.5, 0)})
 
                         Library.Flags[Dropdown.Flag] = chosen
                         Dropdown.Callback(chosen)
@@ -2588,15 +3240,14 @@ do
                     for opt, tbl in next, Dropdown.OptionInsts do
                         if opt ~= option then
                             tbl.text.Position = UDim2.new(0, 6, 0.5, 0)
-                            tbl.accent.Visible = false
+                            tbl.accent.BackgroundTransparency = 1
                         end
                     end
                     chosen = option
                     Value.Text = option
                     text.Position = UDim2.new(0, 8, 0.5, 0)
-                    accent.Visible = true
-                    Content.Visible = false
-                    NewList.ZIndex = 1
+                    accent.BackgroundTransparency = 0
+                    Dropdown.Fade(false)
                     Library.Flags[Dropdown.Flag] = option
                     Dropdown.Callback(option)
                 end
@@ -2643,8 +3294,8 @@ do
                 AccentLine.BorderSizePixel = 0
                 AccentLine.Size = UDim2.new(0, 2, 1, 0)
                 AccentLine.Parent = NewOption
-                AccentLine.Visible = false
-
+                AccentLine.BackgroundTransparency = 0
+                
                 NewOption.Parent = Content
 
                 Dropdown.OptionInsts[option].text = Value1
@@ -2677,7 +3328,7 @@ do
                 for opt, tbl in next, Dropdown.OptionInsts do
                     if not table.find(option, opt) then
                         tbl.text.Position = UDim2.new(0, 6, 0.5, 0)
-                        tbl.accent.Visible = false
+                        tbl.accent.BackgroundTransparency = 1
                     end
                 end
 
@@ -2708,13 +3359,13 @@ do
                 for opt, tbl in next, Dropdown.OptionInsts do
                     if opt ~= option then
                         tbl.text.Position = UDim2.new(0, 6, 0.5, 0)
-                        tbl.accent.Visible = false
+                        tbl.accent.BackgroundTransparency = 1
                     end
                 end
                 if table.find(Dropdown.Options, option) then
                     chosen = option
                     Dropdown.OptionInsts[option].text.Position = UDim2.new(0, 8, 0.5, 0)
-                    Dropdown.OptionInsts[option].accent.Visible = true
+                    Dropdown.OptionInsts[option].accent.BackgroundTransparency = 0
                     Value.Text = option
                     Library.Flags[Dropdown.Flag] = chosen
                     Dropdown.Callback(chosen)
@@ -3802,7 +4453,7 @@ do
                 AccentLine.BorderColor3 = Color3.fromRGB(0, 0, 0)
                 AccentLine.BorderSizePixel = 0
                 AccentLine.Size = UDim2.new(0, 2, 1, 0)
-                AccentLine.Visible = false
+                AccentLine.Visible = true
                 AccentLine.Parent = NewPlayer1
 
                 NewPlayer1.Parent = List
@@ -3870,14 +4521,14 @@ do
             end
         end)
         
-        createoptions(game:GetService("Players"):GetPlayers())
+        createoptions(game.Players:GetPlayers())
         
-        game:GetService("Players").PlayerAdded:Connect(function()
-            Playerlist:Refresh(game:GetService("Players"):GetPlayers(), true)
+        game.Players.PlayerAdded:Connect(function()
+            Playerlist:Refresh(game.Players:GetPlayers(), true)
         end)
         
-        game:GetService("Players").PlayerRemoving:Connect(function()
-            Playerlist:Refresh(game:GetService("Players"):GetPlayers(), true)
+        game.Players.PlayerRemoving:Connect(function()
+            Playerlist:Refresh(game.Players:GetPlayers(), true)
         end)
 
         Playerlist.Page.Elements.Left.Size = UDim2.new(0.5, -5,0.5, -80)
@@ -4181,7 +4832,6 @@ do
 
             NewBar.Parent = HolderInline
 
-            
             function NewBarInd:UpdateValue(NewValue)
                 NewValue = math.clamp(Library:Round(NewValue, 1), NewBarInd.Min, NewBarInd.Max)
                 local sizeX = ((NewValue - NewBarInd.Min) / (NewBarInd.Max - NewBarInd.Min))
@@ -4205,4 +4855,5 @@ do
         return Indicator
     end
 end
+
 return Library
