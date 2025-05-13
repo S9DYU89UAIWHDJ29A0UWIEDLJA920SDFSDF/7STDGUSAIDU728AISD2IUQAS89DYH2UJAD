@@ -4858,3 +4858,5 @@ do
         return Indicator
     end
 end
+
+return Library
