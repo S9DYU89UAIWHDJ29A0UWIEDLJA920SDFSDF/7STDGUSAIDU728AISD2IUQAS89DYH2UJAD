@@ -1387,6 +1387,7 @@ do
 
         game.Players.LocalPlayer.Character.Archivable = true
         local character = game.Players.LocalPlayer.Character:Clone()
+        game.Players.LocalPlayer.Character.Archivable = false
         character.Animate:Destroy()
         character.MuteRadio:Destroy()
         character.AnimateRotation:Destroy()
