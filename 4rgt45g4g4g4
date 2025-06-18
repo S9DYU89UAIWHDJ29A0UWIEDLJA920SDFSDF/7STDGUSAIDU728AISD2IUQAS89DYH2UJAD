@@ -2324,6 +2324,10 @@ do
         local function SetState()
             Toggle.Toggled = not Toggle.Toggled
             TweenService:Create(Accent, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = Toggle.Toggled and 0 or 1}):Play()
+            task.spawn(function()
+                wait(0.25)
+                Accent.Transparency = Toggle.Toggled and 0 or 1
+            end)
             Library.Flags[Toggle.Flag] = Toggle.Toggled
             Toggle.Callback(Toggle.Toggled)
         end
